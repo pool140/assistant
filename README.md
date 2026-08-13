@@ -29,3 +29,7 @@ The model is about 142 MB before APK packaging. Recognition runs locally and doe
 
 
 Build fix: sherpa-onnx JitPack dependency uses the official tag format `v1.13.4`. The Arabic Moonshine v2 model files are downloaded during CI from the official model repository.
+
+
+## Wake-word command window
+After `يا مساعد` is recognized as a separate speech segment, the service stays armed for 8 seconds and treats the next speech segment as the command. This keeps the microphone continuously open while allowing natural pauses between the wake word and command.
