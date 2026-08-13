@@ -35,6 +35,14 @@ class VoiceListenerService : Service() {
     @Volatile private var paused = false
     @Volatile private var stopped = false
 
+    // Wake-word state: the microphone stays open continuously, but after
+    // hearing "يا مساعد" the assistant remains armed briefly so the next
+    // ASR segment can contain the actual command.
+    @Volatile private var awaitingCommand = false
+    @Volatile private var commandDeadlineElapsed = 0L
+    private val commandWindowMs = 8_000L
+    private val commandHandler by lazy { android.os.Handler(mainLooper) }
+
     override fun onCreate() {
         super.onCreate()
         isRunning = true
@@ -68,6 +76,8 @@ class VoiceListenerService : Service() {
 
     override fun onDestroy() {
         stopped = true
+        awaitingCommand = false
+        commandHandler.removeCallbacksAndMessages(null)
         isRunning = false
         asr?.close()
         asr = null
@@ -86,6 +96,8 @@ class VoiceListenerService : Service() {
 
     private fun pauseListening() {
         paused = true
+        awaitingCommand = false
+        commandHandler.removeCallbacksAndMessages(null)
         asr?.stop()
         updateNotification("متوقف مؤقتًا")
     }
@@ -97,13 +109,57 @@ class VoiceListenerService : Service() {
 
     private fun handleHeardText(heardText: String) {
         if (paused || stopped) return
+
+        val now = SystemClock.elapsedRealtime()
         val wake = normalize(CommandStore.getWakeWord(this)).ifBlank { "يا مساعد" }
         val normalized = normalize(heardText)
-        val wakeVariants = listOf(wake, "يا مساعد", "يالمساعد", "يا مساعده", "يا مساعدي").distinct()
-        val matched = wakeVariants.firstOrNull { normalized.contains(it) } ?: return
-        val commandText = normalized.substringAfter(matched).trim()
-        if (commandText.isBlank()) return
-        dispatch(heardText, commandText)
+        val wakeVariants = listOf(
+            wake,
+            "يا مساعد",
+            "يالمساعد",
+            "يا مساعده",
+            "يا مساعدي",
+            "يا مساع"
+        ).map { normalize(it) }.distinct()
+
+        // Case 1: wake word and command arrived in the same ASR segment.
+        val matched = wakeVariants.firstOrNull { normalized.contains(it) }
+        if (matched != null) {
+            val commandText = normalized.substringAfter(matched).trim()
+            if (commandText.isBlank()) {
+                armForCommand()
+            } else {
+                awaitingCommand = false
+                commandHandler.removeCallbacksAndMessages(null)
+                dispatch(heardText, commandText)
+            }
+            return
+        }
+
+        // Case 2: "يا مساعد" was recognized as a separate segment.
+        // Accept the next speech segment as the command for a short window.
+        if (awaitingCommand) {
+            if (now <= commandDeadlineElapsed && normalized.isNotBlank()) {
+                awaitingCommand = false
+                commandHandler.removeCallbacksAndMessages(null)
+                dispatch(heardText, normalized)
+            } else {
+                awaitingCommand = false
+            }
+        }
+    }
+
+    private fun armForCommand() {
+        awaitingCommand = true
+        commandDeadlineElapsed = SystemClock.elapsedRealtime() + commandWindowMs
+        updateNotification("سمعتك، قول الأمر")
+        commandHandler.removeCallbacksAndMessages(null)
+        commandHandler.postDelayed({
+            if (SystemClock.elapsedRealtime() >= commandDeadlineElapsed) {
+                awaitingCommand = false
+                updateNotification("المساعد يستمع باستمرار")
+            }
+        }, commandWindowMs)
     }
 
     private fun dispatch(originalText: String, commandText: String) {
