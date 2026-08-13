@@ -45,5 +45,5 @@ dependencies {
 
     // Local Arabic ASR/VAD stack. The AAR is built from the official sherpa-onnx
     // release through JitPack; recognition itself is offline/on-device.
-    implementation 'com.github.k2-fsa:sherpa-onnx:1.13.4'
+    implementation 'com.github.k2-fsa:sherpa-onnx:v1.13.4'
 }
