@@ -11,8 +11,8 @@ android {
         applicationId "com.voicecontrol.app"
         minSdk 26
         targetSdk 34
-        versionCode 1
-        versionName "1.0"
+        versionCode 2
+        versionName "2.0"
     }
 
     buildTypes {
@@ -27,12 +27,11 @@ android {
         targetCompatibility JavaVersion.VERSION_17
     }
 
-    kotlinOptions {
-        jvmTarget = '17'
-    }
+    kotlinOptions { jvmTarget = '17' }
+    buildFeatures { viewBinding true }
 
-    buildFeatures {
-        viewBinding true
+    packaging {
+        resources.excludes += ['/META-INF/{AL2.0,LGPL2.1}']
     }
 }
 
@@ -43,4 +42,8 @@ dependencies {
     implementation 'androidx.constraintlayout:constraintlayout:2.1.4'
     implementation 'org.jetbrains.kotlinx:kotlinx-coroutines-android:1.7.3'
     implementation 'org.json:json:20231013'
+
+    // Local Arabic ASR/VAD stack. The AAR is built from the official sherpa-onnx
+    // release through JitPack; recognition itself is offline/on-device.
+    implementation 'com.github.k2-fsa:sherpa-onnx:1.13.4'
 }
