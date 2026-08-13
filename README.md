@@ -26,3 +26,6 @@ The workflow downloads:
 `sherpa-onnx-moonshine-base-ar-quantized-2026-02-27`
 
 The model is about 142 MB before APK packaging. Recognition runs locally and does not require internet access after the model is installed.
+
+
+Build fix: sherpa-onnx JitPack dependency uses the official tag format `v1.13.4`. The Arabic Moonshine v2 model files are downloaded during CI from the official model repository.
