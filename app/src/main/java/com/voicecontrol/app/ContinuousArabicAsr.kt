@@ -195,13 +195,15 @@ class ContinuousArabicAsr(
         try {
             val r = recognizer ?: return
             val stream = r.createStream()
-            stream.use {
-                it.acceptWaveform(samples, SAMPLE_RATE)
-                r.decode(it)
-                val text = r.getResult(it).text.trim()
+            try {
+                stream.acceptWaveform(samples, SAMPLE_RATE)
+                r.decode(stream)
+                val text = r.getResult(stream).text.trim()
                 if (text.isNotBlank() && SystemClock.elapsedRealtime() >= ignoreUntilElapsed) {
                     onText(text)
                 }
+            } finally {
+                stream.release()
             }
         } catch (_: Throwable) {
             // Keep the capture stream alive even if one utterance fails to decode.
