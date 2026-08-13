@@ -1,75 +1,110 @@
 package com.voicecontrol.app
 
 import android.content.Context
+import android.content.pm.PackageManager
+import java.text.Normalizer
+import java.util.Locale
 
 sealed class ParsedCommand {
     data class OpenApp(val packageName: String, val label: String) : ParsedCommand()
     data class RunAction(val action: CalibratedAction) : ParsedCommand()
     data class RunCombo(val combo: ComboCommand) : ParsedCommand()
     data class ScrollCurrent(val direction: String) : ParsedCommand()
+    object OpenVoiceChat : ParsedCommand()
     object Unknown : ParsedCommand()
 }
 
-/**
- * Turns free-form heard Arabic text into a structured command.
- * Deliberately flexible: several synonyms map to the same intent so the
- * user doesn't have to say an exact fixed phrase every time.
- */
 object CommandInterpreter {
+    private val OPEN = listOf("افتح", "افتحلي", "شغل", "شغللي", "ادخل", "ادخللي", "روح", "روحلي")
+    private val SCROLL_UP = listOf("مرر لفوق", "مرر للاعلى", "مرر لأعلى", "اسحب لفوق", "اسكرول لفوق", "انزل لفوق")
+    private val SCROLL_DOWN = listOf("مرر لتحت", "مرر للاسفل", "مرر لأسفل", "اسحب لتحت", "اسكرول لتحت")
 
-    private val OPEN_SYNONYMS = listOf("افتحلي", "افتح", "شغللي", "شغل", "ادخللي", "ادخل")
-    private val SCROLL_SYNONYMS = listOf("مرر", "نزل", "اسكرول", "لف الصفحة")
-    private val TAP_SYNONYMS = listOf("دوس", "اضغط", "دوس على", "اضغط على")
+    private val aliases = mapOf(
+        "com.facebook.katana" to listOf("فيسبوك", "فيس بوك", "الفيسبوك", "الفيس بوك", "facebook", "فيس"),
+        "com.openai.chatgpt" to listOf("شات جي بي تي", "شات جى بى تى", "شات جيبيتي", "تشات جي بي تي", "chatgpt", "chat gpt", "شات جيبيتي"),
+        "com.whatsapp" to listOf("واتساب", "واتس اب", "واتس", "whatsapp"),
+        "com.google.android.youtube" to listOf("يوتيوب", "يو تيوب", "youtube"),
+        "com.anthropic.claude" to listOf("كلود", "claude"),
+        "com.instagram.android" to listOf("انستجرام", "انستغرام", "انستا", "instagram"),
+        "org.telegram.messenger" to listOf("تليجرام", "تلجرام", "تيليجرام", "telegram"),
+        "com.zhiliaoapp.musically" to listOf("تيك توك", "تيكتوك", "tiktok")
+    )
 
     fun parse(ctx: Context, heardText: String): ParsedCommand {
         val text = normalize(heardText)
 
-        // 1. Combo commands take priority (e.g. "كلمني على كلود")
+        if (text.contains("محادثه صوت") || text.contains("محادثه صوتيه") ||
+            text.contains("محادثه صوتية") || text.contains("المحادثه الصوتيه") ||
+            text.contains("التحدث مع شات جي بي تي") || text.contains("تكلم مع شات جي بي تي")) {
+            if (text.contains("شات") || text.contains("chat")) return ParsedCommand.OpenVoiceChat
+        }
+
         for (combo in CommandStore.getCombos(ctx)) {
-            if (text.contains(normalize(combo.label))) {
-                return ParsedCommand.RunCombo(combo)
-            }
+            if (text.contains(normalize(combo.label))) return ParsedCommand.RunCombo(combo)
         }
-
-        // 2. Explicit calibrated actions (e.g. "دوس على زرار التحدث")
         for (action in CommandStore.getActions(ctx)) {
-            if (text.contains(normalize(action.label))) {
-                return ParsedCommand.RunAction(action)
-            }
+            if (text.contains(normalize(action.label))) return ParsedCommand.RunAction(action)
         }
+        if (SCROLL_UP.any { text.contains(normalize(it)) }) return ParsedCommand.ScrollCurrent("up")
+        if (SCROLL_DOWN.any { text.contains(normalize(it)) }) return ParsedCommand.ScrollCurrent("down")
 
-        // 3. Generic scroll on whatever app is currently open
-        if (SCROLL_SYNONYMS.any { text.contains(normalize(it)) }) {
-            return ParsedCommand.ScrollCurrent("down")
+        val apps = getLaunchableApps(ctx)
+        val openRequested = OPEN.any { text.contains(normalize(it)) }
+        if (openRequested || apps.isNotEmpty()) {
+            val match = apps.sortedByDescending { score(text, it) }.firstOrNull { score(text, it) > 0 }
+            if (match != null) return ParsedCommand.OpenApp(match.packageName, match.label)
         }
-
-        // 4. Open app: "افتح/افتحلي/شغل + اسم التطبيق"
-        if (OPEN_SYNONYMS.any { text.contains(normalize(it)) }) {
-            for (app in CommandStore.getApps(ctx)) {
-                if (text.contains(normalize(app.label))) {
-                    return ParsedCommand.OpenApp(app.packageName, app.label)
-                }
-            }
-        }
-
-        // 5. Fallback: check if any app name is mentioned at all, even without an explicit "open" verb
-        for (app in CommandStore.getApps(ctx)) {
-            if (text.contains(normalize(app.label))) {
-                return ParsedCommand.OpenApp(app.packageName, app.label)
-            }
-        }
-
         return ParsedCommand.Unknown
     }
 
-    /** Strips diacritics-insensitive noise and normalizes alef/ya variants for looser matching. */
+    private fun getLaunchableApps(ctx: Context): List<AppShortcut> {
+        val pm = ctx.packageManager
+        val map = LinkedHashMap<String, AppShortcut>()
+        val installed = pm.getInstalledApplications(PackageManager.GET_META_DATA)
+        for (info in installed) {
+            val launch = pm.getLaunchIntentForPackage(info.packageName) ?: continue
+            val label = info.loadLabel(pm)?.toString()?.trim().orEmpty()
+            if (label.isNotBlank()) map[info.packageName] = AppShortcut(label, info.packageName)
+        }
+        for ((pkg, list) in aliases) {
+            if (pm.getLaunchIntentForPackage(pkg) != null) {
+                val current = map[pkg]
+                val preferred = current?.copy(label = list.first()) ?: AppShortcut(list.first(), pkg)
+                map[pkg] = preferred
+            }
+        }
+        return map.values.toList()
+    }
+
+    private fun score(text: String, app: AppShortcut): Int {
+        val pkg = app.packageName
+        var best = 0
+        val candidates = buildList {
+            add(app.label)
+            addAll(aliases[pkg].orEmpty())
+        }
+        for (candidate in candidates) {
+            val n = normalize(candidate)
+            if (n.isBlank()) continue
+            if (text == n) best = maxOf(best, 100)
+            else if (text.contains(n)) best = maxOf(best, 80 + n.length)
+            else {
+                val compactText = text.replace(" ", "")
+                val compact = n.replace(" ", "")
+                if (compact.length >= 4 && compactText.contains(compact)) best = maxOf(best, 60 + compact.length)
+            }
+        }
+        return best
+    }
+
     private fun normalize(s: String): String {
-        return s.trim()
-            .replace("أ", "ا")
-            .replace("إ", "ا")
-            .replace("آ", "ا")
-            .replace("ى", "ي")
-            .replace("ة", "ه")
-            .lowercase()
+        val noDiacritics = Normalizer.normalize(s, Normalizer.Form.NFD)
+            .replace("\\p{M}".toRegex(), "")
+        return noDiacritics.trim()
+            .replace("أ", "ا").replace("إ", "ا").replace("آ", "ا")
+            .replace("ى", "ي").replace("ة", "ه")
+            .replace("ـ", "")
+            .replace(Regex("\\s+"), " ")
+            .lowercase(Locale("ar"))
     }
 }
