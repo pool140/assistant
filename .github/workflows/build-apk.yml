@@ -27,10 +27,21 @@ jobs:
       - name: Set up Gradle
         uses: gradle/actions/setup-gradle@v4
         with:
-          gradle-version: '8.5'
+          gradle-version: '8.2'
 
       - name: Accept SDK licenses
         run: yes | sdkmanager --licenses > /dev/null || true
+
+      - name: Download Arabic Moonshine ASR model
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p app/src/main/assets/moonshine-ar
+          base="https://huggingface.co/csukuangfj2/sherpa-onnx-moonshine-base-ar-quantized-2026-02-27/resolve/main"
+          curl -L --fail --retry 4 -o app/src/main/assets/moonshine-ar/encoder_model.ort "$base/encoder_model.ort?download=true"
+          curl -L --fail --retry 4 -o app/src/main/assets/moonshine-ar/decoder_model_merged.ort "$base/decoder_model_merged.ort?download=true"
+          curl -L --fail --retry 4 -o app/src/main/assets/moonshine-ar/tokens.txt "$base/tokens.txt?download=true"
+          ls -lh app/src/main/assets/moonshine-ar
 
       - name: Build debug APK
         run: gradle assembleDebug --no-daemon --stacktrace
@@ -38,16 +49,21 @@ jobs:
       - name: Upload APK as workflow artifact
         uses: actions/upload-artifact@v4
         with:
-          name: VoiceControl-debug-apk
+          name: VoiceControl-v2-debug-apk
           path: app/build/outputs/apk/debug/app-debug.apk
 
-      - name: Publish downloadable release
-        uses: softprops/action-gh-release@v2
-        with:
-          tag_name: latest
-          name: "أحدث نسخة (Debug APK)"
-          body: "بناء تلقائي من آخر تحديث على main. نزّل ملف app-debug.apk وثبّته على موبايلك مباشرة."
-          prerelease: true
-          files: app/build/outputs/apk/debug/app-debug.apk
+      - name: Publish/update downloadable release
         env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          apk="app/build/outputs/apk/debug/app-debug.apk"
+          if gh release view latest >/dev/null 2>&1; then
+            gh release upload latest "$apk" --clobber
+          else
+            gh release create latest "$apk" \
+              --prerelease \
+              --title "أحدث نسخة من المساعد الصوتي" \
+              --notes "بناء تلقائي من آخر تحديث على main."
+          fi
