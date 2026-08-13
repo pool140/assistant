@@ -1,0 +1,4 @@
+<resources>
+    <string name="app_name">المساعد الصوتي</string>
+    <string name="accessibility_service_description">تستخدم هذه الخدمة للضغط على الشاشة والتمرير نيابة عنك تنفيذًا لأوامرك الصوتية، وفتح التطبيقات التي تطلبها.</string>
+</resources>
