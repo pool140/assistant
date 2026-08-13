@@ -37,6 +37,7 @@ class VoiceListenerService : Service() {
     private val handler = Handler(Looper.getMainLooper())
     private var listening = false
     private var paused = false // user can pause listening without stopping the service
+    @Volatile private var stopped = false // set true once the service is being destroyed
 
     override fun onCreate() {
         super.onCreate()
@@ -63,8 +64,13 @@ class VoiceListenerService : Service() {
     }
 
     override fun onDestroy() {
+        stopped = true
         isRunning = false
+        handler.removeCallbacksAndMessages(null)
+        speechRecognizer?.stopListening()
         speechRecognizer?.destroy()
+        speechRecognizer = null
+        tts?.stop()
         tts?.shutdown()
         super.onDestroy()
     }
@@ -73,7 +79,9 @@ class VoiceListenerService : Service() {
 
     private fun pauseListening() {
         paused = true
+        handler.removeCallbacksAndMessages(null)
         speechRecognizer?.stopListening()
+        listening = false
         updateNotification("متوقف مؤقتًا")
     }
 
@@ -109,7 +117,7 @@ class VoiceListenerService : Service() {
     }
 
     private fun startListening() {
-        if (listening || paused) return
+        if (listening || paused || stopped) return
         listening = true
         val intent = Intent(RecognizerIntent.ACTION_RECOGNIZE_SPEECH).apply {
             putExtra(RecognizerIntent.EXTRA_LANGUAGE_MODEL, RecognizerIntent.LANGUAGE_MODEL_FREE_FORM)
@@ -127,7 +135,8 @@ class VoiceListenerService : Service() {
 
     private fun restartListeningSoon() {
         listening = false
-        handler.postDelayed({ startListening() }, 300)
+        if (stopped || paused) return
+        handler.postDelayed({ if (!stopped && !paused) startListening() }, 300)
     }
 
     private fun handleHeardText(heardText: String) {
