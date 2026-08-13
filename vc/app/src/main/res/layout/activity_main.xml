@@ -1,0 +1,103 @@
+<?xml version="1.0" encoding="utf-8"?>
+<ScrollView xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent">
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="vertical"
+        android:padding="16dp">
+
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="المساعد الصوتي"
+            android:textSize="22sp"
+            android:textStyle="bold"
+            android:layout_marginBottom="12dp" />
+
+        <!-- Permissions -->
+        <TextView android:layout_width="wrap_content" android:layout_height="wrap_content"
+            android:text="1) الصلاحيات" android:textStyle="bold" android:layout_marginTop="8dp" />
+        <Button android:id="@+id/btnMicPermission" android:layout_width="match_parent"
+            android:layout_height="wrap_content" android:text="طلب إذن الميكروفون" />
+        <Button android:id="@+id/btnAccessibility" android:layout_width="match_parent"
+            android:layout_height="wrap_content" android:text="تفعيل صلاحية Accessibility" />
+        <Button android:id="@+id/btnOverlayPermission" android:layout_width="match_parent"
+            android:layout_height="wrap_content" android:text="تفعيل صلاحية الظهور فوق التطبيقات" />
+
+        <!-- Service control -->
+        <TextView android:layout_width="wrap_content" android:layout_height="wrap_content"
+            android:text="2) تشغيل المساعد" android:textStyle="bold" android:layout_marginTop="16dp" />
+        <Button android:id="@+id/btnStartService" android:layout_width="match_parent"
+            android:layout_height="wrap_content" android:text="ابدأ الاستماع" />
+        <Button android:id="@+id/btnStopService" android:layout_width="match_parent"
+            android:layout_height="wrap_content" android:text="إيقاف الاستماع" />
+
+        <!-- Settings -->
+        <TextView android:layout_width="wrap_content" android:layout_height="wrap_content"
+            android:text="3) الإعدادات" android:textStyle="bold" android:layout_marginTop="16dp" />
+
+        <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="horizontal">
+            <EditText android:id="@+id/editWakeWord" android:layout_width="0dp" android:layout_weight="1"
+                android:layout_height="wrap_content" android:hint="كلمة التفعيل (مثلاً: يا مساعد)" />
+            <Button android:id="@+id/btnSaveWakeWord" android:layout_width="wrap_content"
+                android:layout_height="wrap_content" android:text="حفظ" />
+        </LinearLayout>
+
+        <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="horizontal">
+            <TextView android:layout_width="0dp" android:layout_weight="1" android:layout_height="wrap_content"
+                android:text="تأكيد صوتي بعد كل أمر" />
+            <Switch android:id="@+id/switchVoiceConfirm" android:layout_width="wrap_content" android:layout_height="wrap_content" />
+        </LinearLayout>
+
+        <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="horizontal">
+            <TextView android:layout_width="0dp" android:layout_weight="1" android:layout_height="wrap_content"
+                android:text="تشغيل تلقائي عند اتصال بلوتوث العربية" />
+            <Switch android:id="@+id/switchAutoDriving" android:layout_width="wrap_content" android:layout_height="wrap_content" />
+        </LinearLayout>
+
+        <!-- App shortcuts -->
+        <TextView android:layout_width="wrap_content" android:layout_height="wrap_content"
+            android:text="4) تطبيقات الفتح السريع" android:textStyle="bold" android:layout_marginTop="16dp" />
+        <LinearLayout android:id="@+id/appsContainer" android:layout_width="match_parent"
+            android:layout_height="wrap_content" android:orientation="vertical" />
+
+        <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="horizontal" android:layout_marginTop="8dp">
+            <EditText android:id="@+id/editAppLabel" android:layout_width="0dp" android:layout_weight="1"
+                android:layout_height="wrap_content" android:hint="اسم التطبيق بالعربي" />
+            <EditText android:id="@+id/editAppPackage" android:layout_width="0dp" android:layout_weight="1"
+                android:layout_height="wrap_content" android:hint="اسم الحزمة (package name)" />
+        </LinearLayout>
+        <Button android:id="@+id/btnAddApp" android:layout_width="match_parent"
+            android:layout_height="wrap_content" android:text="إضافة تطبيق" />
+
+        <!-- Calibrated actions -->
+        <TextView android:layout_width="wrap_content" android:layout_height="wrap_content"
+            android:text="5) أزرار وحركات مسجّلة" android:textStyle="bold" android:layout_marginTop="16dp" />
+        <LinearLayout android:id="@+id/actionsContainer" android:layout_width="match_parent"
+            android:layout_height="wrap_content" android:orientation="vertical" />
+
+        <EditText android:id="@+id/editActionLabel" android:layout_width="match_parent"
+            android:layout_height="wrap_content" android:hint="الأمر (مثلاً: اضغط على زر التحدث)" />
+        <EditText android:id="@+id/editActionPackage" android:layout_width="match_parent"
+            android:layout_height="wrap_content" android:hint="اسم حزمة التطبيق اللي فيه الزرار" />
+        <RadioGroup android:id="@+id/radioActionType" android:layout_width="wrap_content"
+            android:layout_height="wrap_content" android:orientation="horizontal">
+            <RadioButton android:id="@+id/radioTap" android:layout_width="wrap_content"
+                android:layout_height="wrap_content" android:text="ضغطة" android:checked="true" />
+            <RadioButton android:id="@+id/radioSwipe" android:layout_width="wrap_content"
+                android:layout_height="wrap_content" android:text="تمرير" />
+        </RadioGroup>
+        <Button android:id="@+id/btnRecordAction" android:layout_width="match_parent"
+            android:layout_height="wrap_content" android:text="افتح التطبيق وسجّل مكان الزرار" />
+
+        <!-- Log -->
+        <TextView android:layout_width="wrap_content" android:layout_height="wrap_content"
+            android:text="6) سجل الأوامر" android:textStyle="bold" android:layout_marginTop="16dp" />
+        <TextView android:id="@+id/logText" android:layout_width="match_parent"
+            android:layout_height="wrap_content" android:text="" android:textSize="12sp" />
+
+    </LinearLayout>
+</ScrollView>
