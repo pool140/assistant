@@ -20,8 +20,14 @@ object CommandInterpreter {
     private val SCROLL_DOWN = listOf("مرر لتحت", "مرر للاسفل", "مرر لأسفل", "اسحب لتحت", "اسكرول لتحت")
 
     private val aliases = mapOf(
-        "com.facebook.katana" to listOf("فيسبوك", "فيس بوك", "الفيسبوك", "الفيس بوك", "facebook", "فيس"),
-        "com.openai.chatgpt" to listOf("شات جي بي تي", "شات جى بى تى", "شات جيبيتي", "تشات جي بي تي", "chatgpt", "chat gpt", "شات جيبيتي"),
+        "com.facebook.katana" to listOf(
+            "فيسبوك", "فيس بوك", "الفيسبوك", "الفيس بوك", "فيس", "الفيس",
+            "facebook", "face book"
+        ),
+        "com.openai.chatgpt" to listOf(
+            "شات جي بي تي", "شات جى بى تى", "شات جيبيتي", "تشات جي بي تي",
+            "شات جي بي", "شات جي", "chatgpt", "chat gpt"
+        ),
         "com.whatsapp" to listOf("واتساب", "واتس اب", "واتس", "whatsapp"),
         "com.google.android.youtube" to listOf("يوتيوب", "يو تيوب", "youtube"),
         "com.anthropic.claude" to listOf("كلود", "claude"),
