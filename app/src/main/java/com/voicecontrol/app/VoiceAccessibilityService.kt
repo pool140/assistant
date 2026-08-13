@@ -6,6 +6,7 @@ import android.content.Intent
 import android.graphics.Path
 import android.util.Log
 import android.view.accessibility.AccessibilityEvent
+import android.view.accessibility.AccessibilityNodeInfo
 
 /**
  * Accessibility Service used to programmatically tap / swipe on screen and
@@ -79,12 +80,47 @@ class VoiceAccessibilityService : AccessibilityService() {
         }, null)
     }
 
-    /** Default "scroll down feed" gesture: swipe up from lower-middle to upper-middle of screen. */
-    fun scrollFeed(onDone: (Boolean) -> Unit = {}) {
+    /** Scrolls the current screen in the requested direction. */
+    fun scrollFeed(direction: String = "down", onDone: (Boolean) -> Unit = {}) {
         val metrics = resources.displayMetrics
         val centerX = metrics.widthPixels / 2f
-        val fromY = metrics.heightPixels * 0.75f
-        val toY = metrics.heightPixels * 0.25f
-        swipe(centerX, fromY, centerX, toY, 250, onDone)
+        val fromY = if (direction == "up") metrics.heightPixels * 0.25f else metrics.heightPixels * 0.75f
+        val toY = if (direction == "up") metrics.heightPixels * 0.75f else metrics.heightPixels * 0.25f
+        swipe(centerX, fromY, centerX, toY, 300, onDone)
+    }
+
+    /** Finds and clicks a likely voice-chat button from the current accessibility tree. */
+    fun clickVoiceChatButton(timeoutMs: Long = 5000, onDone: (Boolean) -> Unit) {
+        val started = System.currentTimeMillis()
+        fun attempt() {
+            if (rootInActiveWindow != null && findAndClickVoiceButton(rootInActiveWindow!!)) {
+                onDone(true)
+                return
+            }
+            if (System.currentTimeMillis() - started >= timeoutMs) {
+                onDone(false)
+                return
+            }
+            android.os.Handler(mainLooper).postDelayed({ attempt() }, 250)
+        }
+        attempt()
+    }
+
+    private fun findAndClickVoiceButton(root: AccessibilityNodeInfo): Boolean {
+        val queue = ArrayDeque<AccessibilityNodeInfo>()
+        queue.add(root)
+        val keywords = listOf(
+            "محادثه صوت", "محادثه صوتيه", "محادثة صوتية", "voice", "voice chat",
+            "talk", "speak", "start voice", "بدء المحادثه الصوتيه", "التحدث", "صوت"
+        )
+        while (queue.isNotEmpty()) {
+            val node = queue.removeFirst()
+            val text = (node.text?.toString().orEmpty() + " " + node.contentDescription?.toString().orEmpty()).lowercase()
+            if (node.isVisibleToUser && node.isClickable && keywords.any { text.contains(it) }) {
+                if (node.performAction(AccessibilityNodeInfo.ACTION_CLICK)) return true
+            }
+            for (i in 0 until node.childCount) node.getChild(i)?.let { queue.add(it) }
+        }
+        return false
     }
 }
